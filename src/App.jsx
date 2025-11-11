@@ -1,14 +1,13 @@
 import React, { useEffect, useState } from 'react';
-// Import Firebase functions: query and limitToLast are key for performance
+// Import necessary Firebase functions, including 'query' and 'limitToLast'
 import { ref, onValue, query, limitToLast } from 'firebase/database'; 
 
-// Import your custom components (Header, Charts, Table)
+// Import your custom components
 import Header from './components/Header';
 import RealtimeChart from './components/RealtimeChart';
 import ReadingsTable from './components/ReadingsTable';
-// import { fetchHistory } from './mocks/mockApi'; // Mocks removed
 
-// Assuming 'database' is passed as a prop from main.js
+// The component receives the 'database' object as a prop from main.js
 export default function App({ database }) {
     // State for the dashboard chart/table data
     const [readings, setReadings] = useState([]);
@@ -22,19 +21,24 @@ export default function App({ database }) {
         }
 
         // --- 1. Listener for Real-Time Alerts (The Status Display) ---
-        // Query to retrieve only the last 1 item on the classified-alerts list.
-        const alertsQuery = query(ref(database, 'classified-alerts'), limitToLast(1));
+        // This query reliably gets ONLY the last item added to the list.
+        const alertsQuery = query(
+            ref(database, 'classified-alerts'), 
+            limitToLast(1)
+        );
         
         const unsubscribeAlerts = onValue(alertsQuery, (snapshot) => {
             const alertsList = snapshot.val();
             
             if (alertsList) {
-                // Get the unique time-ordered key (the name of the last item in the list)
-                const latestKey = Object.keys(alertsList).pop();
-                const latestAlert = alertsList[latestKey];
+                // Safely extract the data: Get the single value from the object/list
+                const latestAlert = Object.values(alertsList)[0];
                 
                 // Update the critical alert status
                 setAlertStatus(latestAlert.status); 
+                
+                // OPTIONAL: Log to browser console for debugging
+                console.log("ALERT STATUS UPDATED:", latestAlert.status);
             } else {
                 setAlertStatus("No data received yet.");
             }
@@ -42,8 +46,7 @@ export default function App({ database }) {
 
 
         // --- 2. Listener for Charts & Tables (Historical Data) ---
-        // This listens to ALL the data in the classified-alerts path for the charts/tables
-        // Note: For charts with lots of data, you might want to adjust the query limit
+        // This listens to ALL data for your charts/tables.
         const readingsRef = ref(database, 'classified-alerts'); 
 
         const unsubscribeReadings = onValue(readingsRef, (snapshot) => {
@@ -51,7 +54,6 @@ export default function App({ database }) {
             if (data) {
                 // Convert the Firebase object into an array and reverse for chronological display
                 const historicalReadings = Object.values(data);
-                // We assume your readings array uses the same data structure as the alert object
                 setReadings(historicalReadings.slice().reverse()); 
             }
         });
@@ -63,7 +65,7 @@ export default function App({ database }) {
             unsubscribeReadings();
         };
     }, [database]); 
-    // We are deliberately ignoring the old mock state updates, which were removed.
+    
 
     return (
         <div className="app">
@@ -71,7 +73,6 @@ export default function App({ database }) {
             <div className="layout">
                 <div>
                     <div className="card charts">
-                        {/* RealtimeChart component is now receiving actual Firebase data */}
                         <RealtimeChart readings={readings} />
                     </div>
 
@@ -90,7 +91,7 @@ export default function App({ database }) {
 
                     <div className="card">
                         <h3>Alerts</h3>
-                        {/* Display the real-time classified status */}
+                        {/* The status color changes based on the alertStatus state */}
                         <p style={{ fontWeight: 'bold', color: alertStatus === "UNSAFE" ? 'red' : 'green' }}>
                             {alertStatus}
                         </p>
