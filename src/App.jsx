@@ -56,19 +56,26 @@ export default function App({ database }) {
             if (data) {
                 const historicalReadings = Object.values(data);
                 
-                // CRITICAL FIX: Map the data to ensure column names are correctly retrieved.
-                // This ensures that if the Python script sends 'gamma', the table gets 'Gamma'.
-                const mappedReadings = historicalReadings.map(item => ({
-                    // FIX: Timestamp conversion (from seconds to milliseconds)
-                    timestamp: item.timestamp,
+                // CRITICAL FIX: Map the data to match component expectations
+                // Handle both flat structure and nested sensors structure from Firebase
+                const mappedReadings = historicalReadings.map(item => {
+                    // Extract sensor values - handle both flat and nested structures
+                    const gamma = item.gamma || item.Gamma || item.gamma_cpm || (item.sensors && item.sensors.gamma_cpm) || 0;
+                    const uv = item.uv || item.UV || item.uv_index || (item.sensors && item.sensors.uv_index) || 0;
+                    const emf = item.EMF || item.EMF_mT || item.emf_mT || item.emf || (item.sensors && item.sensors.emf_mT) || 0;
+                    const status = item.status || item.classification || 'UNKNOWN';
                     
-                    // CRITICAL FIX: Ensure keys match the table headers exactly (case-sensitive)
-                    Gamma: item.gamma || item.Gamma || '-',
-                    UV: item.uv || item.UV || '-',
-                    // Check for both common formats of the EMF field
-                    'EMF (mT)': item.EMF_mT || item.emf_mT || item.EMF || '-', 
-                    Class: item.status ? item.status.toUpperCase() : 'UNKNOWN',
-                }));
+                    return {
+                        // Timestamp in seconds (components will handle conversion if needed)
+                        timestamp: item.timestamp || Date.now() / 1000,
+                        // Use the keys that components expect
+                        gamma_cpm: gamma,
+                        uv_index: uv,
+                        emf_mT: emf,
+                        classification: status.toLowerCase(),
+                        status: status,
+                    };
+                });
                 
                 // Reverse and set the final data
                 setReadings(mappedReadings.slice().reverse()); 
