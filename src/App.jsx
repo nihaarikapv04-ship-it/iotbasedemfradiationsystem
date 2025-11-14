@@ -16,9 +16,12 @@ export default function App({ database }) {
 
     useEffect(() => {
         if (!database) {
-            console.error("Firebase database connection is missing.");
+            console.error("❌ Firebase database connection is missing.");
             return; 
         }
+
+        console.log("🔌 Connecting to Firebase Database...");
+        console.log("📡 Listening to path: classified-alerts");
 
         // --- 1. Listener for Real-Time Alerts (The Status Display) ---
         // This query reliably gets ONLY the last item added to the list.
@@ -30,18 +33,27 @@ export default function App({ database }) {
         const unsubscribeAlerts = onValue(alertsQuery, (snapshot) => {
             const alertsList = snapshot.val();
             
+            console.log("📥 Received data from classified-alerts:", alertsList);
+            
             if (alertsList) {
                 // Safely extract the data: Get the single value from the object/list
                 const latestAlert = Object.values(alertsList)[0];
                 
-                // Update the critical alert status
-                setAlertStatus(latestAlert.status); 
-                
-                // OPTIONAL: Log to browser console for debugging
-                console.log("ALERT STATUS UPDATED:", latestAlert.status);
+                if (latestAlert && latestAlert.status) {
+                    // Update the critical alert status
+                    setAlertStatus(latestAlert.status); 
+                    console.log("✅ ALERT STATUS UPDATED:", latestAlert.status);
+                } else {
+                    console.warn("⚠️ Data received but missing 'status' field:", latestAlert);
+                    setAlertStatus("Data format error - missing status");
+                }
             } else {
+                console.warn("⚠️ No data found at 'classified-alerts' path. Make sure data is added under 'classified-alerts' node in Firebase.");
                 setAlertStatus("No data received yet.");
             }
+        }, (error) => {
+            console.error("❌ Error reading from classified-alerts:", error);
+            setAlertStatus("Connection error - check console");
         });
 
 
@@ -51,11 +63,19 @@ export default function App({ database }) {
 
         const unsubscribeReadings = onValue(readingsRef, (snapshot) => {
             const data = snapshot.val();
+            console.log("📊 Received readings data:", data);
+            
             if (data) {
                 // Convert the Firebase object into an array and reverse for chronological display
                 const historicalReadings = Object.values(data);
+                console.log(`✅ Loaded ${historicalReadings.length} readings`);
                 setReadings(historicalReadings.slice().reverse()); 
+            } else {
+                console.warn("⚠️ No readings data found. Add data under 'classified-alerts' in Firebase Console.");
+                setReadings([]);
             }
+        }, (error) => {
+            console.error("❌ Error reading readings data:", error);
         });
 
 

@@ -3,12 +3,10 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import './styles.css';
 
-createRoot(document.getElementById('root')).render(<App />);
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { getDatabase } from "firebase/database";
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -25,4 +23,17 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+
+// Initialize Analytics (with error handling for development)
+let analytics;
+try {
+  analytics = getAnalytics(app);
+} catch (error) {
+  console.warn("Analytics initialization failed (this is OK in development):", error);
+}
+
+// Initialize Realtime Database
+const database = getDatabase(app);
+
+// Render the App component with the database instance
+createRoot(document.getElementById('root')).render(<App database={database} />);
