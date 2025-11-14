@@ -20,11 +20,7 @@ export default function App({ database }) {
             return; 
         }
 
-        console.log("🔌 Connecting to Firebase Database...");
-        console.log("📡 Listening to path: classified-alerts");
-
-        // --- 1. Listener for Real-Time Alerts (The Status Display) ---
-        // This query reliably gets ONLY the last item added to the list.
+        // --- 1. Listener for Real-Time Alerts (Status Display) ---
         const alertsQuery = query(
             ref(database, 'classified-alerts'), 
             limitToLast(1)
@@ -33,22 +29,16 @@ export default function App({ database }) {
         const unsubscribeAlerts = onValue(alertsQuery, (snapshot) => {
             const alertsList = snapshot.val();
             
-            console.log("📥 Received data from classified-alerts:", alertsList);
-            
             if (alertsList) {
-                // Safely extract the data: Get the single value from the object/list
                 const latestAlert = Object.values(alertsList)[0];
                 
                 if (latestAlert && latestAlert.status) {
-                    // Update the critical alert status
-                    setAlertStatus(latestAlert.status); 
-                    console.log("✅ ALERT STATUS UPDATED:", latestAlert.status);
+                    // Normalize status to uppercase for clean display
+                    setAlertStatus(latestAlert.status.toUpperCase()); 
                 } else {
-                    console.warn("⚠️ Data received but missing 'status' field:", latestAlert);
                     setAlertStatus("Data format error - missing status");
                 }
             } else {
-                console.warn("⚠️ No data found at 'classified-alerts' path. Make sure data is added under 'classified-alerts' node in Firebase.");
                 setAlertStatus("No data received yet.");
             }
         }, (error) => {
@@ -58,20 +48,31 @@ export default function App({ database }) {
 
 
         // --- 2. Listener for Charts & Tables (Historical Data) ---
-        // This listens to ALL data for your charts/tables.
         const readingsRef = ref(database, 'classified-alerts'); 
 
         const unsubscribeReadings = onValue(readingsRef, (snapshot) => {
             const data = snapshot.val();
-            console.log("📊 Received readings data:", data);
             
             if (data) {
-                // Convert the Firebase object into an array and reverse for chronological display
                 const historicalReadings = Object.values(data);
-                console.log(`✅ Loaded ${historicalReadings.length} readings`);
-                setReadings(historicalReadings.slice().reverse()); 
+                
+                // CRITICAL FIX: Map the data to ensure column names are correctly retrieved.
+                // This ensures that if the Python script sends 'gamma', the table gets 'Gamma'.
+                const mappedReadings = historicalReadings.map(item => ({
+                    // FIX: Timestamp conversion (from seconds to milliseconds)
+                    timestamp: item.timestamp,
+                    
+                    // CRITICAL FIX: Ensure keys match the table headers exactly (case-sensitive)
+                    Gamma: item.gamma || item.Gamma || '-',
+                    UV: item.uv || item.UV || '-',
+                    // Check for both common formats of the EMF field
+                    'EMF (mT)': item.EMF_mT || item.emf_mT || item.EMF || '-', 
+                    Class: item.status ? item.status.toUpperCase() : 'UNKNOWN',
+                }));
+                
+                // Reverse and set the final data
+                setReadings(mappedReadings.slice().reverse()); 
             } else {
-                console.warn("⚠️ No readings data found. Add data under 'classified-alerts' in Firebase Console.");
                 setReadings([]);
             }
         }, (error) => {
@@ -106,12 +107,18 @@ export default function App({ database }) {
                         <h3>Device Info</h3>
                         <p><strong>ID:</strong> device-001</p>
                         <p><strong>Location:</strong> Bangalore (Realtime)</p>
-                        <p><strong>Last update:</strong> {readings[0] ? new Date(readings[0].timestamp * 1000).toLocaleString() : '—'}</p>
+                        <p>
+                            <strong>Last update:</strong> 
+                            {/* Final date formatting fix */}
+                            {readings[0] 
+                                ? new Date(readings[0].timestamp * 1000).toLocaleString() 
+                                : '—'
+                            }
+                        </p>
                     </div>
 
                     <div className="card">
                         <h3>Alerts</h3>
-                        {/* The status color changes based on the alertStatus state */}
                         <p style={{ fontWeight: 'bold', color: alertStatus === "UNSAFE" ? 'red' : 'green' }}>
                             {alertStatus}
                         </p>
