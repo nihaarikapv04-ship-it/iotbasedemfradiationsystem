@@ -1,0 +1,9 @@
+{
+  "classified-alerts": {
+    "final_verification_key": {
+      "timestamp": 1731331800,
+      "status": "SAFE",
+      "raw_key": "verified_manual_key"
+    }
+  }
+}
