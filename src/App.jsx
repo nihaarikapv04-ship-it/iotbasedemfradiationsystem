@@ -48,7 +48,7 @@ export default function App({ database }) {
 
 
         // --- 2. Listener for Charts & Tables (Historical Data) ---
-        const readingsRef = ref(database, 'classified-alerts'); 
+        const readingsRef = ref(database, 'uvData'); 
 
         const unsubscribeReadings = onValue(readingsRef, (snapshot) => {
             const data = snapshot.val();
